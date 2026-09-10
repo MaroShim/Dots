@@ -54,7 +54,7 @@ export class Game {
     this.initGame();
   }
 
-  public initGame(withGravityReset: boolean = false) {
+  public initGame(withRainIn: boolean = false) {
     this.score = 0;
     this.isGameOver = false;
     this.timeLeft = TIMED_INITIAL_SECONDS;
@@ -72,20 +72,13 @@ export class Game {
     this.hideGameOverModal();
     this.loopBannerEl.classList.remove('show');
 
-    if (withGravityReset) {
-      setTimeout(() => {
-        this.soundManager.playFallOutSound();
-        this.board.startGravityReset(
-          () => {
-            if (this.mode === 'timed' && !this.isGameOver) {
-              this.startTimer();
-            }
-          },
-          () => {
-            this.soundManager.playFallInSound();
-          }
-        );
-      }, 70);
+    if (withRainIn) {
+      this.soundManager.playFallInSound();
+      this.board.startFallIn(() => {
+        if (this.mode === 'timed' && !this.isGameOver) {
+          this.startTimer();
+        }
+      });
     } else {
       this.board.initGrid();
       if (this.mode === 'timed') {
@@ -134,7 +127,11 @@ export class Game {
       this.modalNewBestEl.classList.add('hidden');
     }
 
-    this.modalEl.classList.remove('hidden');
+    // 1초에 걸쳐 화면의 모든 점이 바닥으로 우수수 떨어져 완전히 사라진 후 모달 오픈!
+    this.soundManager.playFallOutSound();
+    this.board.startFallOut(() => {
+      this.modalEl.classList.remove('hidden');
+    });
   }
 
   private hideGameOverModal() {
@@ -181,13 +178,13 @@ export class Game {
 
     // Mouse Events
     this.canvas.addEventListener('mousedown', (e) => {
-      if (this.isGameOver || this.board.isGravityResetting) return;
+      if (this.isGameOver || this.board.isAnimating) return;
       const pos = getPos(e);
       this.isInteracting = this.connectionManager.handlePointerDown(pos.x, pos.y);
     });
 
     window.addEventListener('mousemove', (e) => {
-      if (!this.isInteracting || this.isGameOver || this.board.isGravityResetting) return;
+      if (!this.isInteracting || this.isGameOver || this.board.isAnimating) return;
       const pos = getPos(e);
       this.connectionManager.handlePointerMove(pos.x, pos.y);
       this.updateLoopBanner();
@@ -201,7 +198,7 @@ export class Game {
 
     // Touch Events (for mobile/tablet)
     this.canvas.addEventListener('touchstart', (e) => {
-      if (this.isGameOver || this.board.isGravityResetting) return;
+      if (this.isGameOver || this.board.isAnimating) return;
       e.preventDefault();
       if (e.touches.length > 0) {
         const pos = getPos(e.touches[0]);
@@ -210,7 +207,7 @@ export class Game {
     }, { passive: false });
 
     this.canvas.addEventListener('touchmove', (e) => {
-      if (!this.isInteracting || this.isGameOver || this.board.isGravityResetting) return;
+      if (!this.isInteracting || this.isGameOver || this.board.isAnimating) return;
       e.preventDefault();
       if (e.touches.length > 0) {
         const pos = getPos(e.touches[0]);

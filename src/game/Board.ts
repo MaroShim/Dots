@@ -164,31 +164,30 @@ export class Board {
     return list;
   }
 
-  public isGravityResetting: boolean = false;
-  private gravityPhase: 'idle' | 'falling_out' | 'falling_in' = 'idle';
-  private gravityStartTime: number = 0;
-  private readonly fallOutDuration: number = 680; // ms: ample time to clearly see dots tumble down
-  private readonly fallInDuration: number = 750; // ms: smooth bounce rain-in
-  private fallOutDots: { dot: Dot; startY: number; destY: number; delay: number }[] = [];
-  private fallInDots: { dot: Dot; startY: number; destY: number; delay: number }[] = [];
-  private onGravityComplete?: () => void;
-  private onFallInCallback?: () => void;
+  public isFallingOut: boolean = false;
+  public isFallingIn: boolean = false;
+  private animStartTime: number = 0;
+  private fallOutDuration: number = 1000; // 1 second as requested
+  private fallInDuration: number = 650; // ms
+  private activeFallDots: { dot: Dot; startY: number; destY: number; delay: number }[] = [];
+  private onAnimComplete?: () => void;
+
+  public get isAnimating(): boolean {
+    return this.isFallingOut || this.isFallingIn;
+  }
 
   /**
-   * Drops all existing dots off the bottom of the screen with gravity,
-   * then rains down fresh dots with bounce settling.
+   * Called when game ends: drops all dots off the bottom over 1.0s, leaving the board empty.
    */
-  public startGravityReset(onComplete?: () => void, onFallIn?: () => void) {
-    this.isGravityResetting = true;
-    this.gravityPhase = 'falling_out';
-    this.gravityStartTime = performance.now();
-    this.onGravityComplete = onComplete;
-    this.onFallInCallback = onFallIn;
-    this.fallOutDots = [];
+  public startFallOut(onComplete?: () => void) {
+    this.isFallingOut = true;
+    this.isFallingIn = false;
+    this.animStartTime = performance.now();
+    this.onAnimComplete = onComplete;
+    this.activeFallDots = [];
 
-    const bottomY = (this.canvasHeight || 440) + this.cellSize * 2.0;
+    const bottomY = (this.canvasHeight || 440) + this.cellSize * 2.2;
 
-    // Gather existing dots to drop down
     for (let r = 0; r < GRID_SIZE; r++) {
       for (let c = 0; c < GRID_SIZE; c++) {
         let dot = this.grid[r][c];
@@ -210,24 +209,29 @@ export class Board {
           this.grid[r][c] = dot;
         }
 
-        // Bottom rows drop first, creating an opening bottom waterfall effect
-        const delay = (GRID_SIZE - 1 - r) * 35 + ((c + r) % 3) * 20;
-        this.fallOutDots.push({
+        // Waterfall cascade delay: lower rows start falling first
+        const delay = (GRID_SIZE - 1 - r) * 50 + ((c + r) % 3) * 30;
+        this.activeFallDots.push({
           dot,
           startY: dot.y,
-          destY: bottomY + (GRID_SIZE - r) * this.cellSize * 0.4,
+          destY: bottomY + (GRID_SIZE - r) * this.cellSize * 0.5,
           delay
         });
       }
     }
   }
 
-  private prepareFallIn() {
-    this.gravityPhase = 'falling_in';
-    this.gravityStartTime = performance.now();
-    this.fallInDots = [];
+  /**
+   * Called when restarting the game: spawns new dots from above and drops them in.
+   */
+  public startFallIn(onComplete?: () => void) {
+    this.isFallingIn = true;
+    this.isFallingOut = false;
+    this.animStartTime = performance.now();
+    this.onAnimComplete = onComplete;
+    this.activeFallDots = [];
 
-    // Clear and create 36 fresh dots
+    // Clear and create 36 completely fresh dots
     this.grid = [];
     for (let r = 0; r < GRID_SIZE; r++) {
       this.grid[r] = [];
@@ -235,8 +239,8 @@ export class Board {
         const target = this.getCellCenter(r, c);
         const color = this.getRandomColor();
 
-        // Spawn high above the canvas ceiling
-        const startY = -this.cellSize * (GRID_SIZE - r) * 1.8 - (c % 2) * 30;
+        // Spawn above the canvas top edge
+        const startY = -this.cellSize * (GRID_SIZE - r) * 1.5 - (c % 2) * 25;
 
         const newDot: Dot = {
           id: this.nextId++,
@@ -254,9 +258,9 @@ export class Board {
 
         this.grid[r][c] = newDot;
 
-        // Cascade delay so top drops in staggered wave
-        const delay = r * 35 + (c % 3) * 25;
-        this.fallInDots.push({
+        // Cascade delay so top ones drop in sequentially
+        const delay = r * 35 + (c % 3) * 20;
+        this.activeFallDots.push({
           dot: newDot,
           startY,
           destY: target.y,
@@ -264,70 +268,80 @@ export class Board {
         });
       }
     }
-
-    if (this.onFallInCallback) {
-      this.onFallInCallback();
-    }
   }
 
   /**
    * Smooth physics / easing animation update for dots
    */
   public update() {
-    // 1. Gravity Reset Animation (Fall out & Rain in)
-    if (this.isGravityResetting) {
-      const now = performance.now();
-      const elapsed = now - this.gravityStartTime;
+    const now = performance.now();
 
-      if (this.gravityPhase === 'falling_out') {
-        let allDone = true;
-        for (const item of this.fallOutDots) {
-          if (elapsed < item.delay) {
-            allDone = false;
-            continue;
-          }
-          const p = Math.min(1, (elapsed - item.delay) / (this.fallOutDuration - item.delay));
-          // Ease-in quadratic (gravity acceleration down)
-          item.dot.y = item.startY + (item.destY - item.startY) * (p * p);
-          if (p < 1) allDone = false;
-        }
+    // 1. Fall Out: Dots fall off bottom over 1.0s
+    if (this.isFallingOut) {
+      const elapsed = now - this.animStartTime;
+      let allDone = true;
 
-        if (allDone || elapsed >= this.fallOutDuration) {
-          // Switch to raining in fresh dots!
-          this.prepareFallIn();
+      for (const item of this.activeFallDots) {
+        if (elapsed < item.delay) {
+          allDone = false;
+          continue;
         }
-        return;
+        const effectiveDuration = Math.max(100, this.fallOutDuration - item.delay);
+        const p = Math.min(1, (elapsed - item.delay) / effectiveDuration);
+        
+        // Accelerated gravity curve
+        item.dot.y = item.startY + (item.destY - item.startY) * (p * p);
+        if (p < 1) allDone = false;
       }
 
-      if (this.gravityPhase === 'falling_in') {
-        let allDone = true;
-        for (const item of this.fallInDots) {
-          if (elapsed < item.delay) {
-            allDone = false;
-            continue;
-          }
-          const p = Math.min(1, (elapsed - item.delay) / (this.fallInDuration - item.delay));
-          // Ease-out bounce landing
-          item.dot.y = item.startY + (item.destY - item.startY) * easeOutBounce(p);
-          if (p < 1) allDone = false;
+      if (allDone || elapsed >= this.fallOutDuration) {
+        this.isFallingOut = false;
+        // Board is now completely empty!
+        this.grid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
+        this.activeFallDots = [];
+        if (this.onAnimComplete) {
+          const cb = this.onAnimComplete;
+          this.onAnimComplete = undefined;
+          cb();
         }
-
-        if (allDone || elapsed >= this.fallInDuration) {
-          this.isGravityResetting = false;
-          this.gravityPhase = 'idle';
-          for (const item of this.fallInDots) {
-            item.dot.y = item.destY;
-          }
-          if (this.onGravityComplete) {
-            this.onGravityComplete();
-            this.onGravityComplete = undefined;
-          }
-        }
-        return;
       }
+      return;
     }
 
-    // 2. Normal gravity drop for standard gameplay
+    // 2. Fall In: Fresh dots rain down from top and bounce settle
+    if (this.isFallingIn) {
+      const elapsed = now - this.animStartTime;
+      let allDone = true;
+
+      for (const item of this.activeFallDots) {
+        if (elapsed < item.delay) {
+          allDone = false;
+          continue;
+        }
+        const effectiveDuration = Math.max(100, this.fallInDuration - item.delay);
+        const p = Math.min(1, (elapsed - item.delay) / effectiveDuration);
+
+        // Ease-out bounce
+        item.dot.y = item.startY + (item.destY - item.startY) * easeOutBounce(p);
+        if (p < 1) allDone = false;
+      }
+
+      if (allDone || elapsed >= this.fallInDuration) {
+        this.isFallingIn = false;
+        for (const item of this.activeFallDots) {
+          item.dot.y = item.destY;
+        }
+        this.activeFallDots = [];
+        if (this.onAnimComplete) {
+          const cb = this.onAnimComplete;
+          this.onAnimComplete = undefined;
+          cb();
+        }
+      }
+      return;
+    }
+
+    // 3. Normal gravity drop during standard play
     const lerpFactor = 0.28;
     for (let r = 0; r < GRID_SIZE; r++) {
       for (let c = 0; c < GRID_SIZE; c++) {
