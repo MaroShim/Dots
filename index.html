@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Dots - A Game About Connecting</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Header: Mode Selector & Sound Toggle -->
+    <header class="header">
+      <div class="logo">DOTS</div>
+      <div class="mode-tabs">
+        <button class="mode-btn active" data-mode="timed">TIMED</button>
+        <button class="mode-btn" data-mode="moves">MOVES</button>
+        <button class="mode-btn" data-mode="endless">ENDLESS</button>
+      </div>
+      <button id="sound-btn" class="icon-btn" title="Toggle Sound" aria-label="Toggle Sound">
+        <span class="icon">🔊</span>
+      </button>
+    </header>
+
+    <!-- Score & Status Dashboard -->
+    <section class="dashboard">
+      <div class="stat-card">
+        <span class="stat-label" id="metric-label">TIME</span>
+        <span class="stat-value" id="metric-value">60</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">SCORE</span>
+        <span class="stat-value" id="current-score">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">BEST</span>
+        <span class="stat-value" id="best-score">0</span>
+      </div>
+    </section>
+
+    <!-- Canvas Play Area -->
+    <main class="game-container">
+      <canvas id="game-canvas"></canvas>
+      <div id="loop-banner" class="loop-banner">SQUARE! ALL CLEARED</div>
+    </main>
+
+    <!-- Bottom Controls -->
+    <footer class="footer">
+      <button id="restart-btn" class="pill-btn">RESTART</button>
+    </footer>
+
+    <!-- Game Over Modal -->
+    <div id="game-over-modal" class="modal-overlay hidden">
+      <div class="modal-content">
+        <h2 class="modal-title">TIME'S UP!</h2>
+        <div class="modal-score-wrap">
+          <span class="modal-score-label">FINAL SCORE</span>
+          <span class="modal-score-val" id="modal-final-score">0</span>
+        </div>
+        <div id="modal-new-best" class="new-best-badge hidden">✨ NEW RECORD! ✨</div>
+        <div class="modal-stats-row">
+          <div>BEST: <span id="modal-best-score">0</span></div>
+        </div>
+        <button id="modal-play-again-btn" class="primary-btn">PLAY AGAIN</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
