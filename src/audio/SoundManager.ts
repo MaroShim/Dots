@@ -152,6 +152,37 @@ export class SoundManager {
   }
 
   /**
+   * Play cascading tones when dots are shuffled
+   */
+  public playShuffleSound() {
+    if (this.isMuted) return;
+    this.unlockAudio();
+    if (!this.ctx) return;
+
+    const notes = [329.63, 392.00, 523.25, 659.25, 783.99, 659.25, 523.25, 392.00];
+    const now = this.ctx.currentTime;
+
+    notes.forEach((freq, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+
+      gain.gain.setValueAtTime(0.001, now + idx * 0.05);
+      gain.gain.linearRampToValueAtTime(0.18, now + idx * 0.05 + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.05 + 0.12);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now + idx * 0.05);
+      osc.stop(now + idx * 0.05 + 0.13);
+    });
+  }
+
+  /**
    * Sound when dots pop and disappear
    */
   public playClearSound(isSquare: boolean) {

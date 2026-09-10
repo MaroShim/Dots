@@ -54,7 +54,7 @@ export class Game {
     this.initGame();
   }
 
-  public initGame() {
+  public initGame(withShuffle: boolean = false) {
     this.score = 0;
     this.isGameOver = false;
     this.timeLeft = TIMED_INITIAL_SECONDS;
@@ -65,7 +65,6 @@ export class Game {
       this.timerInterval = null;
     }
 
-    this.board.initGrid();
     this.connectionManager.reset();
     this.renderer.resize();
 
@@ -73,8 +72,18 @@ export class Game {
     this.hideGameOverModal();
     this.loopBannerEl.classList.remove('show');
 
-    if (this.mode === 'timed') {
-      this.startTimer();
+    if (withShuffle) {
+      this.soundManager.playShuffleSound();
+      this.board.startShuffle(() => {
+        if (this.mode === 'timed' && !this.isGameOver) {
+          this.startTimer();
+        }
+      });
+    } else {
+      this.board.initGrid();
+      if (this.mode === 'timed') {
+        this.startTimer();
+      }
     }
   }
 
@@ -165,13 +174,13 @@ export class Game {
 
     // Mouse Events
     this.canvas.addEventListener('mousedown', (e) => {
-      if (this.isGameOver) return;
+      if (this.isGameOver || this.board.isShuffling) return;
       const pos = getPos(e);
       this.isInteracting = this.connectionManager.handlePointerDown(pos.x, pos.y);
     });
 
     window.addEventListener('mousemove', (e) => {
-      if (!this.isInteracting || this.isGameOver) return;
+      if (!this.isInteracting || this.isGameOver || this.board.isShuffling) return;
       const pos = getPos(e);
       this.connectionManager.handlePointerMove(pos.x, pos.y);
       this.updateLoopBanner();
@@ -185,7 +194,7 @@ export class Game {
 
     // Touch Events (for mobile/tablet)
     this.canvas.addEventListener('touchstart', (e) => {
-      if (this.isGameOver) return;
+      if (this.isGameOver || this.board.isShuffling) return;
       e.preventDefault();
       if (e.touches.length > 0) {
         const pos = getPos(e.touches[0]);
@@ -194,7 +203,7 @@ export class Game {
     }, { passive: false });
 
     this.canvas.addEventListener('touchmove', (e) => {
-      if (!this.isInteracting || this.isGameOver) return;
+      if (!this.isInteracting || this.isGameOver || this.board.isShuffling) return;
       e.preventDefault();
       if (e.touches.length > 0) {
         const pos = getPos(e.touches[0]);

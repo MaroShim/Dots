@@ -32,12 +32,12 @@ window.addEventListener('DOMContentLoaded', () => {
   // Restart Button
   const restartBtn = document.getElementById('restart-btn') as HTMLButtonElement;
   restartBtn.addEventListener('click', () => {
-    game.initGame();
+    game.initGame(true);
   });
 
   // Modal Play Again Button
   const playAgainBtn = document.getElementById('modal-play-again-btn') as HTMLButtonElement;
   playAgainBtn.addEventListener('click', () => {
-    game.initGame();
+    game.initGame(true);
   });
 });

@@ -158,10 +158,147 @@ export class Board {
     return list;
   }
 
+  public isShuffling: boolean = false;
+  private shuffleStartTime: number = 0;
+  private shuffleDuration: number = 700; // ms
+  private shuffleStates: {
+    dot: Dot;
+    startX: number;
+    startY: number;
+    destX: number;
+    destY: number;
+    midX: number;
+    midY: number;
+  }[] = [];
+  private onShuffleComplete?: () => void;
+
+  /**
+   * Shuffles all dots on the board with an arc/swirl animation
+   */
+  public startShuffle(onComplete?: () => void) {
+    this.isShuffling = true;
+    this.shuffleStartTime = performance.now();
+    this.onShuffleComplete = onComplete;
+    this.shuffleStates = [];
+
+    // Ensure all grid cells have dots
+    const dots: Dot[] = [];
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        let dot = this.grid[r][c];
+        if (!dot) {
+          const center = this.getCellCenter(r, c);
+          dot = {
+            id: this.nextId++,
+            row: r,
+            col: c,
+            x: center.x,
+            y: center.y,
+            targetX: center.x,
+            targetY: center.y,
+            color: this.getRandomColor(),
+            scale: 1,
+            alpha: 1,
+            isRemoving: false
+          };
+          this.grid[r][c] = dot;
+        }
+        dots.push(dot);
+      }
+    }
+
+    // Generate randomized target grid positions (Fisher-Yates)
+    const positions: GridPos[] = [];
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        positions.push({ row: r, col: c });
+      }
+    }
+    for (let i = positions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [positions[i], positions[j]] = [positions[j], positions[i]];
+    }
+
+    // Center of board
+    const centerX = this.startX + (GRID_SIZE - 1) * this.cellSize * 0.5;
+    const centerY = this.startY + (GRID_SIZE - 1) * this.cellSize * 0.5;
+
+    // Reset logical grid mapping
+    this.grid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
+
+    // Assign new positions and fresh randomized colors
+    dots.forEach((dot, idx) => {
+      const newPos = positions[idx];
+      const targetCenter = this.getCellCenter(newPos.row, newPos.col);
+
+      const startX = dot.x;
+      const startY = dot.y;
+      const destX = targetCenter.x;
+      const destY = targetCenter.y;
+
+      dot.row = newPos.row;
+      dot.col = newPos.col;
+      dot.targetX = destX;
+      dot.targetY = destY;
+      dot.color = this.getRandomColor(); // Completely fresh colors
+      this.grid[newPos.row][newPos.col] = dot;
+
+      // Calculate a curved midpoint swinging around center for swirl effect
+      const midPointX = (startX + destX) * 0.5;
+      const midPointY = (startY + destY) * 0.5;
+      const dx = midPointX - centerX;
+      const dy = midPointY - centerY;
+      // Perpendicular swirl offset
+      const swirlFactor = 0.6;
+      const midX = midPointX - dy * swirlFactor;
+      const midY = midPointY + dx * swirlFactor;
+
+      this.shuffleStates.push({
+        dot,
+        startX,
+        startY,
+        destX,
+        destY,
+        midX,
+        midY
+      });
+    });
+  }
+
   /**
    * Smooth physics / easing animation update for dots
    */
   public update() {
+    if (this.isShuffling) {
+      const elapsed = performance.now() - this.shuffleStartTime;
+      const progress = Math.min(1, elapsed / this.shuffleDuration);
+
+      // Smooth Ease-In-Out Quintic / Cubic
+      const t = progress < 0.5
+        ? 4 * progress * progress * progress
+        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+      for (const s of this.shuffleStates) {
+        // Quadratic Bezier interpolation for curved trajectory
+        const invT = 1 - t;
+        s.dot.x = invT * invT * s.startX + 2 * invT * t * s.midX + t * t * s.destX;
+        s.dot.y = invT * invT * s.startY + 2 * invT * t * s.midY + t * t * s.destY;
+      }
+
+      if (progress >= 1) {
+        this.isShuffling = false;
+        for (const s of this.shuffleStates) {
+          s.dot.x = s.destX;
+          s.dot.y = s.destY;
+        }
+        if (this.onShuffleComplete) {
+          this.onShuffleComplete();
+          this.onShuffleComplete = undefined;
+        }
+      }
+      return;
+    }
+
     const lerpFactor = 0.28; // Smooth gravity drop
     for (let r = 0; r < GRID_SIZE; r++) {
       for (let c = 0; c < GRID_SIZE; c++) {
@@ -179,3 +316,4 @@ export class Board {
     }
   }
 }
+
