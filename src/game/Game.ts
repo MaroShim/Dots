@@ -54,7 +54,7 @@ export class Game {
     this.initGame();
   }
 
-  public initGame(withShuffle: boolean = false) {
+  public initGame(withGravityReset: boolean = false) {
     this.score = 0;
     this.isGameOver = false;
     this.timeLeft = TIMED_INITIAL_SECONDS;
@@ -72,13 +72,18 @@ export class Game {
     this.hideGameOverModal();
     this.loopBannerEl.classList.remove('show');
 
-    if (withShuffle) {
-      this.soundManager.playShuffleSound();
-      this.board.startShuffle(() => {
-        if (this.mode === 'timed' && !this.isGameOver) {
-          this.startTimer();
+    if (withGravityReset) {
+      this.soundManager.playFallOutSound();
+      this.board.startGravityReset(
+        () => {
+          if (this.mode === 'timed' && !this.isGameOver) {
+            this.startTimer();
+          }
+        },
+        () => {
+          this.soundManager.playFallInSound();
         }
-      });
+      );
     } else {
       this.board.initGrid();
       if (this.mode === 'timed') {
@@ -174,13 +179,13 @@ export class Game {
 
     // Mouse Events
     this.canvas.addEventListener('mousedown', (e) => {
-      if (this.isGameOver || this.board.isShuffling) return;
+      if (this.isGameOver || this.board.isGravityResetting) return;
       const pos = getPos(e);
       this.isInteracting = this.connectionManager.handlePointerDown(pos.x, pos.y);
     });
 
     window.addEventListener('mousemove', (e) => {
-      if (!this.isInteracting || this.isGameOver || this.board.isShuffling) return;
+      if (!this.isInteracting || this.isGameOver || this.board.isGravityResetting) return;
       const pos = getPos(e);
       this.connectionManager.handlePointerMove(pos.x, pos.y);
       this.updateLoopBanner();
@@ -194,7 +199,7 @@ export class Game {
 
     // Touch Events (for mobile/tablet)
     this.canvas.addEventListener('touchstart', (e) => {
-      if (this.isGameOver || this.board.isShuffling) return;
+      if (this.isGameOver || this.board.isGravityResetting) return;
       e.preventDefault();
       if (e.touches.length > 0) {
         const pos = getPos(e.touches[0]);
@@ -203,7 +208,7 @@ export class Game {
     }, { passive: false });
 
     this.canvas.addEventListener('touchmove', (e) => {
-      if (!this.isInteracting || this.isGameOver || this.board.isShuffling) return;
+      if (!this.isInteracting || this.isGameOver || this.board.isGravityResetting) return;
       e.preventDefault();
       if (e.touches.length > 0) {
         const pos = getPos(e.touches[0]);

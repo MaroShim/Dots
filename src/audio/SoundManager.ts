@@ -152,6 +152,63 @@ export class SoundManager {
   }
 
   /**
+   * Sound when dots tumble down out of the board on reset
+   */
+  public playFallOutSound() {
+    if (this.isMuted) return;
+    this.unlockAudio();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, now);
+    osc.frequency.exponentialRampToValueAtTime(120, now + 0.35);
+
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.36);
+  }
+
+  /**
+   * Cascading rain sound when new dots drop into the board
+   */
+  public playFallInSound() {
+    if (this.isMuted) return;
+    this.unlockAudio();
+    if (!this.ctx) return;
+
+    const notes = [261.63, 329.63, 392.00, 523.25, 659.25];
+    const now = this.ctx.currentTime;
+
+    notes.forEach((freq, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.04);
+
+      gain.gain.setValueAtTime(0.001, now + idx * 0.04);
+      gain.gain.linearRampToValueAtTime(0.12, now + idx * 0.04 + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.04 + 0.15);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now + idx * 0.04);
+      osc.stop(now + idx * 0.04 + 0.16);
+    });
+  }
+
+  /**
    * Play cascading tones when dots are shuffled
    */
   public playShuffleSound() {

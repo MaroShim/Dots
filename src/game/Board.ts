@@ -9,6 +9,9 @@ export class Board {
   public dotRadius: number = 0;
   private nextId: number = 1;
 
+  public canvasWidth: number = 0;
+  public canvasHeight: number = 0;
+
   constructor() {
     this.initGrid();
   }
@@ -37,6 +40,9 @@ export class Board {
   }
 
   public resize(canvasWidth: number, canvasHeight: number) {
+    this.canvasWidth = canvasWidth;
+    this.canvasHeight = canvasHeight;
+
     // Leave safe margins
     const padding = Math.min(canvasWidth, canvasHeight) * 0.08;
     const boardArea = Math.min(canvasWidth, canvasHeight) - padding * 2;
@@ -158,157 +164,162 @@ export class Board {
     return list;
   }
 
-  public isShuffling: boolean = false;
-  private shuffleStartTime: number = 0;
-  private shuffleDuration: number = 700; // ms
-  private shuffleStates: {
-    dot: Dot;
-    startX: number;
-    startY: number;
-    destX: number;
-    destY: number;
-    midX: number;
-    midY: number;
-  }[] = [];
-  private onShuffleComplete?: () => void;
+  public isGravityResetting: boolean = false;
+  private gravityPhase: 'idle' | 'falling_out' | 'falling_in' = 'idle';
+  private gravityStartTime: number = 0;
+  private readonly fallOutDuration: number = 420; // ms
+  private readonly fallInDuration: number = 600; // ms
+  private fallOutDots: { dot: Dot; startY: number; destY: number; delay: number }[] = [];
+  private fallInDots: { dot: Dot; startY: number; destY: number; delay: number }[] = [];
+  private onGravityComplete?: () => void;
+  private onFallInCallback?: () => void;
 
   /**
-   * Shuffles all dots on the board with an arc/swirl animation
+   * Drops all existing dots off the bottom of the screen with gravity,
+   * then rains down fresh dots with bounce settling.
    */
-  public startShuffle(onComplete?: () => void) {
-    this.isShuffling = true;
-    this.shuffleStartTime = performance.now();
-    this.onShuffleComplete = onComplete;
-    this.shuffleStates = [];
+  public startGravityReset(onComplete?: () => void, onFallIn?: () => void) {
+    this.isGravityResetting = true;
+    this.gravityPhase = 'falling_out';
+    this.gravityStartTime = performance.now();
+    this.onGravityComplete = onComplete;
+    this.onFallInCallback = onFallIn;
+    this.fallOutDots = [];
 
-    // Ensure all grid cells have dots
-    const dots: Dot[] = [];
+    const bottomY = (this.canvasHeight || 440) + this.cellSize * 1.8;
+
+    // Gather existing dots to drop down
     for (let r = 0; r < GRID_SIZE; r++) {
       for (let c = 0; c < GRID_SIZE; c++) {
-        let dot = this.grid[r][c];
-        if (!dot) {
-          const center = this.getCellCenter(r, c);
-          dot = {
-            id: this.nextId++,
-            row: r,
-            col: c,
-            x: center.x,
-            y: center.y,
-            targetX: center.x,
-            targetY: center.y,
-            color: this.getRandomColor(),
-            scale: 1,
-            alpha: 1,
-            isRemoving: false
-          };
-          this.grid[r][c] = dot;
+        const dot = this.grid[r][c];
+        if (dot) {
+          // Slight stagger from bottom-to-top and left-to-right for cascade waterfall effect
+          const delay = (GRID_SIZE - 1 - r) * 20 + c * 15;
+          this.fallOutDots.push({
+            dot,
+            startY: dot.y,
+            destY: bottomY + (GRID_SIZE - r) * this.cellSize * 0.5,
+            delay
+          });
         }
-        dots.push(dot);
       }
     }
+  }
 
-    // Generate randomized target grid positions (Fisher-Yates)
-    const positions: GridPos[] = [];
+  private prepareFallIn() {
+    this.gravityPhase = 'falling_in';
+    this.gravityStartTime = performance.now();
+    this.fallInDots = [];
+
+    // Clear and create 36 fresh dots
+    this.grid = [];
     for (let r = 0; r < GRID_SIZE; r++) {
+      this.grid[r] = [];
       for (let c = 0; c < GRID_SIZE; c++) {
-        positions.push({ row: r, col: c });
+        const target = this.getCellCenter(r, c);
+        const color = this.getRandomColor();
+
+        // Spawn far above the canvas ceiling
+        const startY = -this.cellSize * (GRID_SIZE - r) * 1.5 - c * 20;
+
+        const newDot: Dot = {
+          id: this.nextId++,
+          row: r,
+          col: c,
+          x: target.x,
+          y: startY,
+          targetX: target.x,
+          targetY: target.y,
+          color,
+          scale: 1,
+          alpha: 1,
+          isRemoving: false
+        };
+
+        this.grid[r][c] = newDot;
+
+        // Cascade delay so upper ones drop naturally
+        const delay = r * 30 + c * 15;
+        this.fallInDots.push({
+          dot: newDot,
+          startY,
+          destY: target.y,
+          delay
+        });
       }
     }
-    for (let i = positions.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [positions[i], positions[j]] = [positions[j], positions[i]];
+
+    if (this.onFallInCallback) {
+      this.onFallInCallback();
     }
-
-    // Center of board
-    const centerX = this.startX + (GRID_SIZE - 1) * this.cellSize * 0.5;
-    const centerY = this.startY + (GRID_SIZE - 1) * this.cellSize * 0.5;
-
-    // Reset logical grid mapping
-    this.grid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
-
-    // Assign new positions and fresh randomized colors
-    dots.forEach((dot, idx) => {
-      const newPos = positions[idx];
-      const targetCenter = this.getCellCenter(newPos.row, newPos.col);
-
-      const startX = dot.x;
-      const startY = dot.y;
-      const destX = targetCenter.x;
-      const destY = targetCenter.y;
-
-      dot.row = newPos.row;
-      dot.col = newPos.col;
-      dot.targetX = destX;
-      dot.targetY = destY;
-      dot.color = this.getRandomColor(); // Completely fresh colors
-      this.grid[newPos.row][newPos.col] = dot;
-
-      // Calculate a curved midpoint swinging around center for swirl effect
-      const midPointX = (startX + destX) * 0.5;
-      const midPointY = (startY + destY) * 0.5;
-      const dx = midPointX - centerX;
-      const dy = midPointY - centerY;
-      // Perpendicular swirl offset
-      const swirlFactor = 0.6;
-      const midX = midPointX - dy * swirlFactor;
-      const midY = midPointY + dx * swirlFactor;
-
-      this.shuffleStates.push({
-        dot,
-        startX,
-        startY,
-        destX,
-        destY,
-        midX,
-        midY
-      });
-    });
   }
 
   /**
    * Smooth physics / easing animation update for dots
    */
   public update() {
-    if (this.isShuffling) {
-      const elapsed = performance.now() - this.shuffleStartTime;
-      const progress = Math.min(1, elapsed / this.shuffleDuration);
+    // 1. Gravity Reset Animation (Fall out & Rain in)
+    if (this.isGravityResetting) {
+      const now = performance.now();
+      const elapsed = now - this.gravityStartTime;
 
-      // Smooth Ease-In-Out Quintic / Cubic
-      const t = progress < 0.5
-        ? 4 * progress * progress * progress
-        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+      if (this.gravityPhase === 'falling_out') {
+        let allDone = true;
+        for (const item of this.fallOutDots) {
+          if (elapsed < item.delay) {
+            allDone = false;
+            continue;
+          }
+          const p = Math.min(1, (elapsed - item.delay) / (this.fallOutDuration - item.delay));
+          // Ease-in quadratic (gravity acceleration down)
+          item.dot.y = item.startY + (item.destY - item.startY) * (p * p);
+          if (p < 1) allDone = false;
+        }
 
-      for (const s of this.shuffleStates) {
-        // Quadratic Bezier interpolation for curved trajectory
-        const invT = 1 - t;
-        s.dot.x = invT * invT * s.startX + 2 * invT * t * s.midX + t * t * s.destX;
-        s.dot.y = invT * invT * s.startY + 2 * invT * t * s.midY + t * t * s.destY;
+        if (allDone || elapsed >= this.fallOutDuration) {
+          // Switch to raining in fresh dots!
+          this.prepareFallIn();
+        }
+        return;
       }
 
-      if (progress >= 1) {
-        this.isShuffling = false;
-        for (const s of this.shuffleStates) {
-          s.dot.x = s.destX;
-          s.dot.y = s.destY;
+      if (this.gravityPhase === 'falling_in') {
+        let allDone = true;
+        for (const item of this.fallInDots) {
+          if (elapsed < item.delay) {
+            allDone = false;
+            continue;
+          }
+          const p = Math.min(1, (elapsed - item.delay) / (this.fallInDuration - item.delay));
+          // Ease-out bounce landing
+          item.dot.y = item.startY + (item.destY - item.startY) * easeOutBounce(p);
+          if (p < 1) allDone = false;
         }
-        if (this.onShuffleComplete) {
-          this.onShuffleComplete();
-          this.onShuffleComplete = undefined;
+
+        if (allDone || elapsed >= this.fallInDuration) {
+          this.isGravityResetting = false;
+          this.gravityPhase = 'idle';
+          for (const item of this.fallInDots) {
+            item.dot.y = item.destY;
+          }
+          if (this.onGravityComplete) {
+            this.onGravityComplete();
+            this.onGravityComplete = undefined;
+          }
         }
+        return;
       }
-      return;
     }
 
-    const lerpFactor = 0.28; // Smooth gravity drop
+    // 2. Normal gravity drop for standard gameplay
+    const lerpFactor = 0.28;
     for (let r = 0; r < GRID_SIZE; r++) {
       for (let c = 0; c < GRID_SIZE; c++) {
         const dot = this.grid[r][c];
         if (dot) {
-          // Animate Y towards targetY
           dot.y += (dot.targetY - dot.y) * lerpFactor;
           dot.x += (dot.targetX - dot.x) * lerpFactor;
 
-          // If very close, snap to target
           if (Math.abs(dot.y - dot.targetY) < 0.2) dot.y = dot.targetY;
           if (Math.abs(dot.x - dot.targetX) < 0.2) dot.x = dot.targetX;
         }
@@ -316,4 +327,23 @@ export class Board {
     }
   }
 }
+
+function easeOutBounce(x: number): number {
+  const n1 = 7.5625;
+  const d1 = 2.75;
+
+  if (x < 1 / d1) {
+    return n1 * x * x;
+  } else if (x < 2 / d1) {
+    const t = x - 1.5 / d1;
+    return n1 * t * t + 0.75;
+  } else if (x < 2.5 / d1) {
+    const t = x - 2.25 / d1;
+    return n1 * t * t + 0.9375;
+  } else {
+    const t = x - 2.625 / d1;
+    return n1 * t * t + 0.984375;
+  }
+}
+
 
