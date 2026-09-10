@@ -54,7 +54,7 @@ export class Game {
     this.initGame();
   }
 
-  public initGame(withRainIn: boolean = false) {
+  public initGame() {
     this.score = 0;
     this.isGameOver = false;
     this.timeLeft = TIMED_INITIAL_SECONDS;
@@ -72,18 +72,64 @@ export class Game {
     this.hideGameOverModal();
     this.loopBannerEl.classList.remove('show');
 
-    if (withRainIn) {
+    this.board.initGrid();
+    if (this.mode === 'timed') {
+      this.startTimer();
+    }
+  }
+
+  /**
+   * Restart game with sequence:
+   * If dots exist, drop them down over 1.0s so screen is empty,
+   * then rain down fresh dots and start.
+   */
+  public restartGame() {
+    if (this.board.isAnimating) return;
+
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+
+    this.connectionManager.reset();
+    this.hideGameOverModal();
+    this.loopBannerEl.classList.remove('show');
+
+    // Check if board currently has dots on screen
+    const hasDots = this.board.grid.some(row => row && row.some(d => d !== null));
+
+    if (hasDots) {
+      // 1. Drop all dots off bottom over 1.0s leaving screen completely empty!
+      this.soundManager.playFallOutSound();
+      this.board.startFallOut(() => {
+        // 2. Screen is completely empty now! Reset stats & rain in new dots
+        this.score = 0;
+        this.timeLeft = TIMED_INITIAL_SECONDS;
+        this.movesLeft = MOVES_INITIAL_COUNT;
+        this.isGameOver = false;
+        this.updateDashboard();
+
+        this.soundManager.playFallInSound();
+        this.board.startFallIn(() => {
+          if (this.mode === 'timed' && !this.isGameOver) {
+            this.startTimer();
+          }
+        });
+      });
+    } else {
+      // Board is already empty (e.g. gameover fall-out just finished)
+      this.score = 0;
+      this.timeLeft = TIMED_INITIAL_SECONDS;
+      this.movesLeft = MOVES_INITIAL_COUNT;
+      this.isGameOver = false;
+      this.updateDashboard();
+
       this.soundManager.playFallInSound();
       this.board.startFallIn(() => {
         if (this.mode === 'timed' && !this.isGameOver) {
           this.startTimer();
         }
       });
-    } else {
-      this.board.initGrid();
-      if (this.mode === 'timed') {
-        this.startTimer();
-      }
     }
   }
 
