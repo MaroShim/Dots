@@ -167,8 +167,8 @@ export class Board {
   public isGravityResetting: boolean = false;
   private gravityPhase: 'idle' | 'falling_out' | 'falling_in' = 'idle';
   private gravityStartTime: number = 0;
-  private readonly fallOutDuration: number = 420; // ms
-  private readonly fallInDuration: number = 600; // ms
+  private readonly fallOutDuration: number = 680; // ms: ample time to clearly see dots tumble down
+  private readonly fallInDuration: number = 750; // ms: smooth bounce rain-in
   private fallOutDots: { dot: Dot; startY: number; destY: number; delay: number }[] = [];
   private fallInDots: { dot: Dot; startY: number; destY: number; delay: number }[] = [];
   private onGravityComplete?: () => void;
@@ -186,22 +186,38 @@ export class Board {
     this.onFallInCallback = onFallIn;
     this.fallOutDots = [];
 
-    const bottomY = (this.canvasHeight || 440) + this.cellSize * 1.8;
+    const bottomY = (this.canvasHeight || 440) + this.cellSize * 2.0;
 
     // Gather existing dots to drop down
     for (let r = 0; r < GRID_SIZE; r++) {
       for (let c = 0; c < GRID_SIZE; c++) {
-        const dot = this.grid[r][c];
-        if (dot) {
-          // Slight stagger from bottom-to-top and left-to-right for cascade waterfall effect
-          const delay = (GRID_SIZE - 1 - r) * 20 + c * 15;
-          this.fallOutDots.push({
-            dot,
-            startY: dot.y,
-            destY: bottomY + (GRID_SIZE - r) * this.cellSize * 0.5,
-            delay
-          });
+        let dot = this.grid[r][c];
+        if (!dot) {
+          const center = this.getCellCenter(r, c);
+          dot = {
+            id: this.nextId++,
+            row: r,
+            col: c,
+            x: center.x,
+            y: center.y,
+            targetX: center.x,
+            targetY: center.y,
+            color: this.getRandomColor(),
+            scale: 1,
+            alpha: 1,
+            isRemoving: false
+          };
+          this.grid[r][c] = dot;
         }
+
+        // Bottom rows drop first, creating an opening bottom waterfall effect
+        const delay = (GRID_SIZE - 1 - r) * 35 + ((c + r) % 3) * 20;
+        this.fallOutDots.push({
+          dot,
+          startY: dot.y,
+          destY: bottomY + (GRID_SIZE - r) * this.cellSize * 0.4,
+          delay
+        });
       }
     }
   }
@@ -219,8 +235,8 @@ export class Board {
         const target = this.getCellCenter(r, c);
         const color = this.getRandomColor();
 
-        // Spawn far above the canvas ceiling
-        const startY = -this.cellSize * (GRID_SIZE - r) * 1.5 - c * 20;
+        // Spawn high above the canvas ceiling
+        const startY = -this.cellSize * (GRID_SIZE - r) * 1.8 - (c % 2) * 30;
 
         const newDot: Dot = {
           id: this.nextId++,
@@ -238,8 +254,8 @@ export class Board {
 
         this.grid[r][c] = newDot;
 
-        // Cascade delay so upper ones drop naturally
-        const delay = r * 30 + c * 15;
+        // Cascade delay so top drops in staggered wave
+        const delay = r * 35 + (c % 3) * 25;
         this.fallInDots.push({
           dot: newDot,
           startY,

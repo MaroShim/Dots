@@ -73,17 +73,19 @@ export class Game {
     this.loopBannerEl.classList.remove('show');
 
     if (withGravityReset) {
-      this.soundManager.playFallOutSound();
-      this.board.startGravityReset(
-        () => {
-          if (this.mode === 'timed' && !this.isGameOver) {
-            this.startTimer();
+      setTimeout(() => {
+        this.soundManager.playFallOutSound();
+        this.board.startGravityReset(
+          () => {
+            if (this.mode === 'timed' && !this.isGameOver) {
+              this.startTimer();
+            }
+          },
+          () => {
+            this.soundManager.playFallInSound();
           }
-        },
-        () => {
-          this.soundManager.playFallInSound();
-        }
-      );
+        );
+      }, 70);
     } else {
       this.board.initGrid();
       if (this.mode === 'timed') {

@@ -236,7 +236,7 @@ body {
   justify-content: center;
   align-items: center;
   z-index: 100;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.15s ease;
 }
 
 .modal-overlay.hidden {
