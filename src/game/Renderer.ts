@@ -1,10 +1,10 @@
 import { Board } from './Board';
 import { ConnectionManager } from './ConnectionManager';
 import { ParticleSystem } from './ParticleSystem';
+import { CANVAS_SIZE } from '../constants';
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
-  private dpr: number = window.devicePixelRatio || 1;
   private pulsePhase: number = 0;
 
   constructor(
@@ -16,35 +16,24 @@ export class Renderer {
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Could not get 2D context');
     this.ctx = context;
+
+    // Fixed internal resolution guarantees zero DPR distortion
+    this.canvas.width = CANVAS_SIZE;
+    this.canvas.height = CANVAS_SIZE;
+    this.board.resize(CANVAS_SIZE, CANVAS_SIZE);
   }
 
   public resize() {
-    const rect = this.canvas.getBoundingClientRect();
-    if (rect.width <= 10 || rect.height <= 10) return;
-
-    this.dpr = window.devicePixelRatio || 1;
-    this.canvas.width = Math.round(rect.width * this.dpr);
-    this.canvas.height = Math.round(rect.height * this.dpr);
-    this.board.resize(rect.width, rect.height);
+    // Keep internal buffer firmly at high-res CANVAS_SIZE
+    if (this.canvas.width !== CANVAS_SIZE || this.canvas.height !== CANVAS_SIZE) {
+      this.canvas.width = CANVAS_SIZE;
+      this.canvas.height = CANVAS_SIZE;
+    }
+    this.board.resize(CANVAS_SIZE, CANVAS_SIZE);
   }
 
   public render() {
-    const rect = this.canvas.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
-
-    if (width <= 10 || height <= 10) return;
-
-    // Self-healing: if layout changed or was initialized at 0, resize immediately
-    const expectedWidth = Math.round(width * this.dpr);
-    const expectedHeight = Math.round(height * this.dpr);
-    if (this.canvas.width !== expectedWidth || this.canvas.height !== expectedHeight || this.board.cellSize <= 0) {
-      this.resize();
-    }
-
-    this.ctx.save();
-    this.ctx.scale(this.dpr, this.dpr);
-    this.ctx.clearRect(0, 0, width, height);
+    this.ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
     this.pulsePhase += 0.08;
 
@@ -53,7 +42,7 @@ export class Renderer {
       this.ctx.save();
       this.ctx.fillStyle = this.connectionManager.currentColor;
       this.ctx.globalAlpha = 0.08 + Math.sin(this.pulsePhase) * 0.03;
-      this.ctx.fillRect(0, 0, width, height);
+      this.ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
       this.ctx.restore();
     }
 
@@ -65,8 +54,6 @@ export class Renderer {
 
     // 4. Draw Particles
     this.particleSystem.render(this.ctx);
-
-    this.ctx.restore();
   }
 
   private renderConnectionLines() {

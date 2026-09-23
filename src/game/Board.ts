@@ -1,5 +1,5 @@
 import { Dot, DotColor, GridPos } from './types';
-import { GRID_SIZE, DOT_COLORS } from '../constants';
+import { GRID_SIZE, CANVAS_SIZE, DOT_COLORS } from '../constants';
 
 export class Board {
   public grid: (Dot | null)[][] = [];
@@ -9,10 +9,11 @@ export class Board {
   public dotRadius: number = 0;
   private nextId: number = 1;
 
-  public canvasWidth: number = 0;
-  public canvasHeight: number = 0;
+  public canvasWidth: number = CANVAS_SIZE;
+  public canvasHeight: number = CANVAS_SIZE;
 
   constructor() {
+    this.resize(CANVAS_SIZE, CANVAS_SIZE);
     this.initGrid();
   }
 
@@ -22,7 +23,7 @@ export class Board {
       this.grid[r] = [];
       for (let c = 0; c < GRID_SIZE; c++) {
         const color = this.getRandomColor();
-        const center = this.cellSize > 0 ? this.getCellCenter(r, c) : { x: 0, y: 0 };
+        const center = this.getCellCenter(r, c);
         this.grid[r][c] = {
           id: this.nextId++,
           row: r,
@@ -40,9 +41,7 @@ export class Board {
     }
   }
 
-  public resize(canvasWidth: number, canvasHeight: number) {
-    if (canvasWidth <= 10 || canvasHeight <= 10) return;
-
+  public resize(canvasWidth: number = CANVAS_SIZE, canvasHeight: number = CANVAS_SIZE) {
     this.canvasWidth = canvasWidth;
     this.canvasHeight = canvasHeight;
 

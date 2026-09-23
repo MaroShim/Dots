@@ -221,12 +221,14 @@ export class Game {
       ro.observe(this.canvas);
     }
 
-    // Pointer coordinates helper (handles CSS scaling)
+    // Pointer coordinates helper (handles CSS-to-Canvas scaling)
     const getPos = (e: MouseEvent | Touch): { x: number; y: number } => {
       const rect = this.canvas.getBoundingClientRect();
+      const scaleX = rect.width > 0 ? this.canvas.width / rect.width : 1;
+      const scaleY = rect.height > 0 ? this.canvas.height / rect.height : 1;
       return {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
       };
     };
 

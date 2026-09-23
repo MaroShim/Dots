@@ -1,6 +1,7 @@
 import { DotColor } from './game/types';
 
 export const GRID_SIZE = 6;
+export const CANVAS_SIZE = 600;
 
 export const DOT_COLORS: DotColor[] = [
   '#EA4335', // Red

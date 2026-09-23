@@ -159,8 +159,10 @@ body {
 }
 
 #game-canvas {
+  display: block;
   width: 100%;
   max-width: 440px;
+  height: auto;
   aspect-ratio: 1 / 1;
   background-color: var(--card-bg);
   border-radius: 28px;
