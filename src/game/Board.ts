@@ -22,14 +22,15 @@ export class Board {
       this.grid[r] = [];
       for (let c = 0; c < GRID_SIZE; c++) {
         const color = this.getRandomColor();
+        const center = this.cellSize > 0 ? this.getCellCenter(r, c) : { x: 0, y: 0 };
         this.grid[r][c] = {
           id: this.nextId++,
           row: r,
           col: c,
-          x: 0,
-          y: 0,
-          targetX: 0,
-          targetY: 0,
+          x: center.x,
+          y: center.y,
+          targetX: center.x,
+          targetY: center.y,
           color,
           scale: 1,
           alpha: 1,
@@ -40,6 +41,8 @@ export class Board {
   }
 
   public resize(canvasWidth: number, canvasHeight: number) {
+    if (canvasWidth <= 10 || canvasHeight <= 10) return;
+
     this.canvasWidth = canvasWidth;
     this.canvasHeight = canvasHeight;
 
@@ -59,8 +62,8 @@ export class Board {
           const target = this.getCellCenter(r, c);
           dot.targetX = target.x;
           dot.targetY = target.y;
-          // If first run, set current x, y directly
-          if (dot.x === 0 && dot.y === 0) {
+          // If dots are at origin or not currently animating, snap to real target
+          if ((dot.x === 0 && dot.y === 0) || !this.isAnimating) {
             dot.x = target.x;
             dot.y = target.y;
           }

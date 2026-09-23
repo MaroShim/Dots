@@ -20,9 +20,11 @@ export class Renderer {
 
   public resize() {
     const rect = this.canvas.getBoundingClientRect();
+    if (rect.width <= 10 || rect.height <= 10) return;
+
     this.dpr = window.devicePixelRatio || 1;
-    this.canvas.width = rect.width * this.dpr;
-    this.canvas.height = rect.height * this.dpr;
+    this.canvas.width = Math.round(rect.width * this.dpr);
+    this.canvas.height = Math.round(rect.height * this.dpr);
     this.board.resize(rect.width, rect.height);
   }
 
@@ -30,6 +32,15 @@ export class Renderer {
     const rect = this.canvas.getBoundingClientRect();
     const width = rect.width;
     const height = rect.height;
+
+    if (width <= 10 || height <= 10) return;
+
+    // Self-healing: if layout changed or was initialized at 0, resize immediately
+    const expectedWidth = Math.round(width * this.dpr);
+    const expectedHeight = Math.round(height * this.dpr);
+    if (this.canvas.width !== expectedWidth || this.canvas.height !== expectedHeight || this.board.cellSize <= 0) {
+      this.resize();
+    }
 
     this.ctx.save();
     this.ctx.scale(this.dpr, this.dpr);

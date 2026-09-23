@@ -51,6 +51,7 @@ export class Game {
     this.modalNewBestEl = document.getElementById('modal-new-best')!;
 
     this.bindEvents();
+    this.renderer.resize();
     this.initGame();
   }
 
@@ -212,6 +213,13 @@ export class Game {
 
   private bindEvents() {
     window.addEventListener('resize', () => this.renderer.resize());
+
+    if (window.ResizeObserver) {
+      const ro = new ResizeObserver(() => {
+        this.renderer.resize();
+      });
+      ro.observe(this.canvas);
+    }
 
     // Pointer coordinates helper (handles CSS scaling)
     const getPos = (e: MouseEvent | Touch): { x: number; y: number } => {
