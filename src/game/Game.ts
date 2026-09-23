@@ -138,6 +138,12 @@ export class Game {
     if (this.mode === newMode) return;
     this.mode = newMode;
     this.initGame();
+    this.soundManager.playFallInSound();
+    this.board.startFallIn(() => {
+      if (this.mode === 'timed' && !this.isGameOver) {
+        this.startTimer();
+      }
+    });
   }
 
   private startTimer() {
