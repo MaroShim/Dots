@@ -246,9 +246,15 @@ export class Game {
       };
     };
 
+    // Explicit touchstart to guarantee WebKit user activation on iOS
+    this.canvas.addEventListener('touchstart', () => {
+      this.soundManager.unlockAudio();
+    }, { passive: true });
+
     // Unified Pointer Events (works flawlessly for touch, mouse, pen)
     this.canvas.addEventListener('pointerdown', (e: PointerEvent) => {
       if (this.isGameOver || this.board.isAnimating) return;
+      this.soundManager.unlockAudio();
       try {
         this.canvas.setPointerCapture(e.pointerId);
       } catch {}

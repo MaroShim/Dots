@@ -2,14 +2,10 @@ import { PENTATONIC_SCALE } from '../constants';
 
 export class SoundManager {
   private ctx: AudioContext | null = null;
-  private masterGain: GainNode | null = null;
   private isMuted: boolean = false;
-  private unlocked: boolean = false;
-  private resumePromise: Promise<void> | null = null;
-  private silentAudioEl: HTMLAudioElement | null = null;
 
   constructor() {
-    // Restore mute state preference (default is unmuted: false)
+    // Check saved mute preference
     try {
       const saved = localStorage.getItem('dots_muted');
       this.isMuted = saved === 'true';
@@ -21,61 +17,38 @@ export class SoundManager {
   }
 
   /**
-   * Bypasses the iOS physical Silent/Mute switch and ensures the Web Audio API
-   * is fully unlocked on iOS Safari and modern mobile browsers.
+   * Lazily initialize AudioContext
    */
-  private unlockiOSAudio() {
-    // 1. Modern WebKit AudioSession API (iOS 16.4+)
-    if ('audioSession' in navigator) {
+  public ensureContext(): AudioContext | null {
+    if (!this.ctx) {
       try {
-        (navigator as any).audioSession.type = 'playback';
-      } catch {}
+        const AudioCtx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (AudioCtx) {
+          this.ctx = new AudioCtx();
+        }
+      } catch (e) {
+        console.warn('[Dots Audio] Context creation failed:', e);
+      }
     }
-
-    // 2. Play a microscopic silent HTML5 <audio> element.
-    // This forces iOS WebKit's audio session category to transition from "ambient" to "playback",
-    // allowing Web Audio API sounds to play through device speakers even if the hardware mute switch is active!
-    try {
-      if (!this.silentAudioEl) {
-        const audio = document.createElement('audio');
-        audio.setAttribute('playsinline', '');
-        audio.setAttribute('webkit-playsinline', '');
-        audio.preload = 'auto';
-        // 0.05s silent WAV base64
-        audio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-        this.silentAudioEl = audio;
-      }
-      const playPromise = this.silentAudioEl.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {});
-      }
-    } catch {}
+    return this.ctx;
   }
 
   /**
-   * Global listeners attached in capture phase to unlock audio on the very first user tap
+   * Global listeners attached in capture phase to unlock audio on the very first user interaction
    */
   private setupUnlockListeners() {
     const unlock = () => {
-      this.unlockiOSAudio();
       this.unlockAudio();
     };
 
-    const unlockEvents = [
-      'pointerdown',
-      'touchstart',
-      'touchend',
-      'mousedown',
-      'mouseup',
-      'click',
-      'keydown'
-    ];
-
+    const unlockEvents = ['touchstart', 'touchend', 'click', 'pointerdown', 'mousedown', 'keydown'];
     unlockEvents.forEach((evt) => {
       window.addEventListener(evt, unlock, { capture: true, passive: true });
     });
 
-    // Automatically resume context when returning to the app/tab from background
+    // Automatically resume context when returning to the app from background
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden && this.ctx && this.ctx.state === 'suspended' && !this.isMuted) {
         this.ctx.resume().catch(() => {});
@@ -90,97 +63,55 @@ export class SoundManager {
   }
 
   /**
-   * Lazily initialize AudioContext and master volume node
+   * Unlocks and resumes AudioContext in direct response to a user gesture.
    */
-  private ensureContext(): AudioContext | null {
-    if (!this.ctx) {
-      try {
-        const AudioCtx =
-          window.AudioContext ||
-          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        if (AudioCtx) {
-          this.ctx = new AudioCtx();
-          this.masterGain = this.ctx.createGain();
-          this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.85, this.ctx.currentTime);
-          this.masterGain.connect(this.ctx.destination);
-        }
-      } catch (e) {
-        console.warn('[Dots Audio] Context creation failed:', e);
-      }
-    }
-    return this.ctx;
-  }
-
-  /**
-   * 1-sample buffer playback trick to awaken iOS WebKit audio pipeline
-   */
-  private playUnlockBuffer(ctx: AudioContext) {
-    try {
-      const buffer = ctx.createBuffer(1, 1, 22050);
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(this.masterGain ?? ctx.destination);
-      source.start(0);
-    } catch {}
-  }
-
-  /**
-   * Unlocks and resumes AudioContext. Returns a Promise that resolves when the context
-   * is ready.
-   */
-  public unlockAudio(): Promise<void> {
+  public unlockAudio(): Promise<AudioContext | null> {
     const ctx = this.ensureContext();
-    if (!ctx) return Promise.resolve();
+    if (!ctx) return Promise.resolve(null);
+
+    // Try WebKit AudioSession API for iOS 16.4+
+    if ('audioSession' in navigator) {
+      try {
+        (navigator as unknown as { audioSession: { type: string } }).audioSession.type = 'playback';
+      } catch {}
+    }
 
     if (ctx.state === 'suspended' || (ctx.state as string) === 'interrupted') {
-      if (!this.resumePromise) {
-        this.resumePromise = ctx
-          .resume()
-          .then(() => {
-            this.playUnlockBuffer(ctx);
-            this.unlocked = true;
-            this.resumePromise = null;
-          })
-          .catch((err) => {
-            console.warn('[Dots Audio] Resume failed:', err);
-            this.resumePromise = null;
-          });
-      }
-      return this.resumePromise;
-    } else {
-      if (!this.unlocked) {
-        this.playUnlockBuffer(ctx);
-        this.unlocked = true;
-      }
-      return Promise.resolve();
+      return ctx
+        .resume()
+        .then(() => {
+          return ctx;
+        })
+        .catch(() => {
+          return ctx;
+        });
     }
+
+    return Promise.resolve(ctx);
   }
 
   /**
    * Executes an audio action safely.
-   * If AudioContext is running, executes synchronously.
-   * If AudioContext is suspended, unlocks and resumes it first and THEN executes action.
+   * If AudioContext is already running, executes synchronously.
+   * If AudioContext is suspended, resumes it first and THEN plays.
    */
-  private runWithAudio(action: (ctx: AudioContext, destination: AudioNode) => void) {
+  private runWithAudio(action: (ctx: AudioContext) => void) {
     if (this.isMuted) return;
-    this.unlockiOSAudio();
 
     const ctx = this.ensureContext();
     if (!ctx) return;
 
-    const dest = this.masterGain ?? ctx.destination;
-
     if (ctx.state === 'running') {
       try {
-        action(ctx, dest);
+        action(ctx);
       } catch (err) {
         console.warn('[Dots Audio] Playback error:', err);
       }
     } else {
-      this.unlockAudio().then(() => {
-        if (this.ctx && !this.isMuted) {
+      this.unlockAudio().then((activeCtx) => {
+        if (activeCtx && !this.isMuted) {
           try {
-            action(this.ctx, this.masterGain ?? this.ctx.destination);
+            action(activeCtx);
           } catch (err) {
             console.warn('[Dots Audio] Playback error:', err);
           }
@@ -195,14 +126,12 @@ export class SoundManager {
       localStorage.setItem('dots_muted', this.isMuted ? 'true' : 'false');
     } catch {}
 
-    if (this.ctx && this.masterGain) {
-      this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.85, this.ctx.currentTime);
-    }
-
     if (!this.isMuted) {
-      this.unlockAudio().then(() => {
-        // Play a cheerful confirmation chime when unmuted
-        this.playConnectTone(2);
+      this.unlockAudio().then((ctx) => {
+        if (ctx) {
+          // Play a cheerful confirmation chime (C5, E5, G5) when unmuted
+          this.playTestChime();
+        }
       });
     }
     return this.isMuted;
@@ -213,11 +142,44 @@ export class SoundManager {
   }
 
   /**
-   * Plays a warm, rich wooden marimba/bell tone for connection step
-   * Uses triangle wave + 2nd harmonic overtone for clarity on smartphone speakers
+   * Test chime played when user turns on sound
+   */
+  public playTestChime() {
+    this.runWithAudio((ctx) => {
+      const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
+      const now = ctx.currentTime;
+
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'triangle';
+        const startTime = now + idx * 0.06;
+        osc.frequency.setValueAtTime(freq, startTime);
+
+        gain.gain.setValueAtTime(0.001, startTime);
+        gain.gain.linearRampToValueAtTime(0.4, startTime + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.25);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(startTime);
+        osc.stop(startTime + 0.26);
+
+        osc.onended = () => {
+          osc.disconnect();
+          gain.disconnect();
+        };
+      });
+    });
+  }
+
+  /**
+   * Plays a warm, rich wooden marimba tone for connection step
    */
   public playConnectTone(stepIndex: number) {
-    this.runWithAudio((ctx, destination) => {
+    this.runWithAudio((ctx) => {
       const freqIndex = Math.min(stepIndex, PENTATONIC_SCALE.length - 1);
       const freq = PENTATONIC_SCALE[freqIndex];
       const now = ctx.currentTime;
@@ -234,7 +196,7 @@ export class SoundManager {
       gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
 
       osc.connect(gain);
-      gain.connect(destination);
+      gain.connect(ctx.destination);
 
       osc.start(now);
       osc.stop(now + 0.31);
@@ -251,7 +213,7 @@ export class SoundManager {
       overGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
 
       overtone.connect(overGain);
-      overGain.connect(destination);
+      overGain.connect(ctx.destination);
 
       overtone.start(now);
       overtone.stop(now + 0.17);
@@ -269,7 +231,7 @@ export class SoundManager {
    * Sound when backtracking / unconnecting a dot
    */
   public playBacktrackTone() {
-    this.runWithAudio((ctx, destination) => {
+    this.runWithAudio((ctx) => {
       const now = ctx.currentTime;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -282,7 +244,7 @@ export class SoundManager {
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
 
       osc.connect(gain);
-      gain.connect(destination);
+      gain.connect(ctx.destination);
 
       osc.start(now);
       osc.stop(now + 0.12);
@@ -298,7 +260,7 @@ export class SoundManager {
    * Celebratory chord when a loop/square is formed (Major Chord C5, E5, G5, C6)
    */
   public playLoopSound() {
-    this.runWithAudio((ctx, destination) => {
+    this.runWithAudio((ctx) => {
       const chord = [523.25, 659.25, 783.99, 1046.5];
       const now = ctx.currentTime;
 
@@ -307,15 +269,15 @@ export class SoundManager {
         const gain = ctx.createGain();
 
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, now + idx * 0.035);
-
         const startTime = now + idx * 0.035;
+        osc.frequency.setValueAtTime(freq, startTime);
+
         gain.gain.setValueAtTime(0.001, startTime);
         gain.gain.linearRampToValueAtTime(0.3, startTime + 0.015);
         gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.5);
 
         osc.connect(gain);
-        gain.connect(destination);
+        gain.connect(ctx.destination);
 
         osc.start(startTime);
         osc.stop(startTime + 0.52);
@@ -332,7 +294,7 @@ export class SoundManager {
    * Sound when dots tumble down out of the board on reset
    */
   public playFallOutSound() {
-    this.runWithAudio((ctx, destination) => {
+    this.runWithAudio((ctx) => {
       const now = ctx.currentTime;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -345,7 +307,7 @@ export class SoundManager {
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
 
       osc.connect(gain);
-      gain.connect(destination);
+      gain.connect(ctx.destination);
 
       osc.start(now);
       osc.stop(now + 0.39);
@@ -361,7 +323,7 @@ export class SoundManager {
    * Cascading rain sound when new dots drop into the board
    */
   public playFallInSound() {
-    this.runWithAudio((ctx, destination) => {
+    this.runWithAudio((ctx) => {
       const notes = [261.63, 329.63, 392.0, 523.25, 659.25];
       const now = ctx.currentTime;
 
@@ -374,11 +336,11 @@ export class SoundManager {
         osc.frequency.setValueAtTime(freq, startTime);
 
         gain.gain.setValueAtTime(0.001, startTime);
-        gain.gain.linearRampToValueAtTime(0.2, startTime + 0.01);
+        gain.gain.linearRampToValueAtTime(0.22, startTime + 0.01);
         gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.22);
 
         osc.connect(gain);
-        gain.connect(destination);
+        gain.connect(ctx.destination);
 
         osc.start(startTime);
         osc.stop(startTime + 0.23);
@@ -395,7 +357,7 @@ export class SoundManager {
    * Cascading tones when dots are shuffled
    */
   public playShuffleSound() {
-    this.runWithAudio((ctx, destination) => {
+    this.runWithAudio((ctx) => {
       const notes = [329.63, 392.0, 523.25, 659.25, 783.99, 659.25, 523.25, 392.0];
       const now = ctx.currentTime;
 
@@ -412,7 +374,7 @@ export class SoundManager {
         gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.16);
 
         osc.connect(gain);
-        gain.connect(destination);
+        gain.connect(ctx.destination);
 
         osc.start(startTime);
         osc.stop(startTime + 0.17);
@@ -429,7 +391,7 @@ export class SoundManager {
    * Pop/burst sound when dots are cleared
    */
   public playClearSound(isSquare: boolean) {
-    this.runWithAudio((ctx, destination) => {
+    this.runWithAudio((ctx) => {
       const now = ctx.currentTime;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -442,7 +404,7 @@ export class SoundManager {
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
 
       osc.connect(gain);
-      gain.connect(destination);
+      gain.connect(ctx.destination);
 
       osc.start(now);
       osc.stop(now + 0.15);
