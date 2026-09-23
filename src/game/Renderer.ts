@@ -1,7 +1,7 @@
 import { Board } from './Board';
 import { ConnectionManager } from './ConnectionManager';
 import { ParticleSystem } from './ParticleSystem';
-import { CANVAS_SIZE } from '../constants';
+import { CANVAS_SIZE, GRID_SIZE } from '../constants';
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
@@ -97,8 +97,8 @@ export class Renderer {
     const isLoopActive = this.connectionManager.isLoop;
     const activeColor = this.connectionManager.currentColor;
 
-    for (let r = 0; r < 6; r++) {
-      for (let c = 0; c < 6; c++) {
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
         const dot = this.board.getDotAt(r, c);
         if (!dot) continue;
 

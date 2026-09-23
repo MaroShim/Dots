@@ -202,13 +202,21 @@ export class Game {
   }
 
   private getBestScore(): number {
-    const key = `dots_best_score_${this.mode}`;
-    return parseInt(localStorage.getItem(key) || '0', 10);
+    try {
+      const key = `dots_best_score_${this.mode}`;
+      return parseInt(localStorage.getItem(key) || '0', 10) || 0;
+    } catch {
+      return 0;
+    }
   }
 
   private saveBestScore(score: number) {
-    const key = `dots_best_score_${this.mode}`;
-    localStorage.setItem(key, score.toString());
+    try {
+      const key = `dots_best_score_${this.mode}`;
+      localStorage.setItem(key, score.toString());
+    } catch {
+      // Storage unavailable or disabled
+    }
   }
 
   private bindEvents() {

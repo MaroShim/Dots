@@ -1,5 +1,6 @@
 import { Board } from './Board';
 import { DotColor, GridPos } from './types';
+import { GRID_SIZE } from '../constants';
 import { SoundManager } from '../audio/SoundManager';
 
 export interface ConnectionResult {
@@ -26,8 +27,8 @@ export class ConnectionManager {
   public getGridPosFromCoords(x: number, y: number): GridPos | null {
     const hitRadius = this.board.cellSize * 0.44; // Generous hit area for mobile/mouse
 
-    for (let r = 0; r < 6; r++) {
-      for (let c = 0; c < 6; c++) {
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
         const center = this.board.getCellCenter(r, c);
         const dist = Math.hypot(x - center.x, y - center.y);
         if (dist <= hitRadius) {
