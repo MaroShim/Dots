@@ -18,6 +18,7 @@ export class Game {
   public timeLeft: number = TIMED_INITIAL_SECONDS;
   public movesLeft: number = MOVES_INITIAL_COUNT;
   public isGameOver: boolean = false;
+  public isGameStarted: boolean = false;
   private timerInterval: number | null = null;
   private isInteracting: boolean = false;
 
@@ -27,6 +28,8 @@ export class Game {
   private currentScoreEl: HTMLElement;
   private bestScoreEl: HTMLElement;
   private loopBannerEl: HTMLElement;
+  private startModalEl: HTMLElement;
+  private startGameBtn: HTMLElement;
   private modalEl: HTMLElement;
   private modalFinalScoreEl: HTMLElement;
   private modalBestScoreEl: HTMLElement;
@@ -45,6 +48,8 @@ export class Game {
     this.currentScoreEl = document.getElementById('current-score')!;
     this.bestScoreEl = document.getElementById('best-score')!;
     this.loopBannerEl = document.getElementById('loop-banner')!;
+    this.startModalEl = document.getElementById('game-start-modal')!;
+    this.startGameBtn = document.getElementById('start-game-btn')!;
     this.modalEl = document.getElementById('game-over-modal')!;
     this.modalFinalScoreEl = document.getElementById('modal-final-score')!;
     this.modalBestScoreEl = document.getElementById('modal-best-score')!;
@@ -74,9 +79,37 @@ export class Game {
     this.loopBannerEl.classList.remove('show');
 
     this.board.initGrid();
-    if (this.mode === 'timed') {
-      this.startTimer();
+
+    if (!this.isGameStarted) {
+      this.startModalEl.classList.remove('hidden');
+    } else {
+      if (this.mode === 'timed') {
+        this.startTimer();
+      }
     }
+  }
+
+  /**
+   * Called when user presses PLAY button on the Start screen
+   */
+  public startGame() {
+    this.soundManager.unlockAudio();
+    this.isGameStarted = true;
+    this.startModalEl.classList.add('hidden');
+    this.hideGameOverModal();
+
+    this.score = 0;
+    this.timeLeft = TIMED_INITIAL_SECONDS;
+    this.movesLeft = MOVES_INITIAL_COUNT;
+    this.isGameOver = false;
+    this.updateDashboard();
+
+    this.soundManager.playFallInSound();
+    this.board.startFallIn(() => {
+      if (this.mode === 'timed' && !this.isGameOver) {
+        this.startTimer();
+      }
+    });
   }
 
   /**
@@ -86,6 +119,10 @@ export class Game {
    */
   public restartGame() {
     if (this.board.isAnimating) return;
+
+    this.soundManager.unlockAudio();
+    this.isGameStarted = true;
+    this.startModalEl.classList.add('hidden');
 
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
@@ -137,13 +174,17 @@ export class Game {
   public setMode(newMode: GameMode) {
     if (this.mode === newMode) return;
     this.mode = newMode;
-    this.initGame();
-    this.soundManager.playFallInSound();
-    this.board.startFallIn(() => {
-      if (this.mode === 'timed' && !this.isGameOver) {
-        this.startTimer();
-      }
-    });
+    this.updateDashboard();
+
+    if (this.isGameStarted) {
+      this.initGame();
+      this.soundManager.playFallInSound();
+      this.board.startFallIn(() => {
+        if (this.mode === 'timed' && !this.isGameOver) {
+          this.startTimer();
+        }
+      });
+    }
   }
 
   private startTimer() {
@@ -235,6 +276,11 @@ export class Game {
       ro.observe(this.canvas);
     }
 
+    // Start Button Listener
+    this.startGameBtn.addEventListener('click', () => {
+      this.startGame();
+    });
+
     // Pointer coordinates helper (handles CSS-to-Canvas scaling)
     const getPos = (e: PointerEvent): { x: number; y: number } => {
       const rect = this.canvas.getBoundingClientRect();
@@ -246,14 +292,14 @@ export class Game {
       };
     };
 
-    // Explicit touchstart to guarantee WebKit user activation on iOS
+    // Explicit touchstart on canvas to guarantee WebKit user activation
     this.canvas.addEventListener('touchstart', () => {
       this.soundManager.unlockAudio();
     }, { passive: true });
 
     // Unified Pointer Events (works flawlessly for touch, mouse, pen)
     this.canvas.addEventListener('pointerdown', (e: PointerEvent) => {
-      if (this.isGameOver || this.board.isAnimating) return;
+      if (!this.isGameStarted || this.isGameOver || this.board.isAnimating) return;
       this.soundManager.unlockAudio();
       try {
         this.canvas.setPointerCapture(e.pointerId);
@@ -263,7 +309,7 @@ export class Game {
     });
 
     this.canvas.addEventListener('pointermove', (e: PointerEvent) => {
-      if (!this.isInteracting || this.isGameOver || this.board.isAnimating) return;
+      if (!this.isGameStarted || !this.isInteracting || this.isGameOver || this.board.isAnimating) return;
       const pos = getPos(e);
       this.connectionManager.handlePointerMove(pos.x, pos.y);
       this.updateLoopBanner();

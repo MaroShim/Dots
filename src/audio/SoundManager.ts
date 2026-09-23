@@ -36,7 +36,7 @@ export class SoundManager {
   }
 
   /**
-   * Global listeners attached in capture phase to unlock audio on the very first user interaction
+   * Global listeners attached in capture phase to unlock audio on user interaction
    */
   private setupUnlockListeners() {
     const unlock = () => {
@@ -69,7 +69,7 @@ export class SoundManager {
     const ctx = this.ensureContext();
     if (!ctx) return Promise.resolve(null);
 
-    // Try WebKit AudioSession API for iOS 16.4+
+    // Modern WebKit AudioSession API (iOS 16.4+)
     if ('audioSession' in navigator) {
       try {
         (navigator as unknown as { audioSession: { type: string } }).audioSession.type = 'playback';
@@ -79,12 +79,8 @@ export class SoundManager {
     if (ctx.state === 'suspended' || (ctx.state as string) === 'interrupted') {
       return ctx
         .resume()
-        .then(() => {
-          return ctx;
-        })
-        .catch(() => {
-          return ctx;
-        });
+        .then(() => ctx)
+        .catch(() => ctx);
     }
 
     return Promise.resolve(ctx);
@@ -92,8 +88,6 @@ export class SoundManager {
 
   /**
    * Executes an audio action safely.
-   * If AudioContext is already running, executes synchronously.
-   * If AudioContext is suspended, resumes it first and THEN plays.
    */
   private runWithAudio(action: (ctx: AudioContext) => void) {
     if (this.isMuted) return;
@@ -129,7 +123,6 @@ export class SoundManager {
     if (!this.isMuted) {
       this.unlockAudio().then((ctx) => {
         if (ctx) {
-          // Play a cheerful confirmation chime (C5, E5, G5) when unmuted
           this.playTestChime();
         }
       });
@@ -166,11 +159,6 @@ export class SoundManager {
 
         osc.start(startTime);
         osc.stop(startTime + 0.26);
-
-        osc.onended = () => {
-          osc.disconnect();
-          gain.disconnect();
-        };
       });
     });
   }
@@ -217,13 +205,6 @@ export class SoundManager {
 
       overtone.start(now);
       overtone.stop(now + 0.17);
-
-      osc.onended = () => {
-        osc.disconnect();
-        gain.disconnect();
-        overtone.disconnect();
-        overGain.disconnect();
-      };
     });
   }
 
@@ -248,11 +229,6 @@ export class SoundManager {
 
       osc.start(now);
       osc.stop(now + 0.12);
-
-      osc.onended = () => {
-        osc.disconnect();
-        gain.disconnect();
-      };
     });
   }
 
@@ -281,11 +257,6 @@ export class SoundManager {
 
         osc.start(startTime);
         osc.stop(startTime + 0.52);
-
-        osc.onended = () => {
-          osc.disconnect();
-          gain.disconnect();
-        };
       });
     });
   }
@@ -311,11 +282,6 @@ export class SoundManager {
 
       osc.start(now);
       osc.stop(now + 0.39);
-
-      osc.onended = () => {
-        osc.disconnect();
-        gain.disconnect();
-      };
     });
   }
 
@@ -344,11 +310,6 @@ export class SoundManager {
 
         osc.start(startTime);
         osc.stop(startTime + 0.23);
-
-        osc.onended = () => {
-          osc.disconnect();
-          gain.disconnect();
-        };
       });
     });
   }
@@ -378,11 +339,6 @@ export class SoundManager {
 
         osc.start(startTime);
         osc.stop(startTime + 0.17);
-
-        osc.onended = () => {
-          osc.disconnect();
-          gain.disconnect();
-        };
       });
     });
   }
@@ -408,11 +364,6 @@ export class SoundManager {
 
       osc.start(now);
       osc.stop(now + 0.15);
-
-      osc.onended = () => {
-        osc.disconnect();
-        gain.disconnect();
-      };
     });
   }
 }
