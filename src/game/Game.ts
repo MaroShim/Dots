@@ -222,7 +222,7 @@ export class Game {
     }
 
     // Pointer coordinates helper (handles CSS-to-Canvas scaling)
-    const getPos = (e: MouseEvent | Touch): { x: number; y: number } => {
+    const getPos = (e: PointerEvent): { x: number; y: number } => {
       const rect = this.canvas.getBoundingClientRect();
       const scaleX = rect.width > 0 ? this.canvas.width / rect.width : 1;
       const scaleY = rect.height > 0 ? this.canvas.height / rect.height : 1;
@@ -232,54 +232,37 @@ export class Game {
       };
     };
 
-    // Mouse Events
-    this.canvas.addEventListener('mousedown', (e) => {
+    // Unified Pointer Events (works flawlessly for touch, mouse, pen)
+    this.canvas.addEventListener('pointerdown', (e: PointerEvent) => {
       if (this.isGameOver || this.board.isAnimating) return;
+      try {
+        this.canvas.setPointerCapture(e.pointerId);
+      } catch {}
       const pos = getPos(e);
       this.isInteracting = this.connectionManager.handlePointerDown(pos.x, pos.y);
     });
 
-    window.addEventListener('mousemove', (e) => {
+    this.canvas.addEventListener('pointermove', (e: PointerEvent) => {
       if (!this.isInteracting || this.isGameOver || this.board.isAnimating) return;
       const pos = getPos(e);
       this.connectionManager.handlePointerMove(pos.x, pos.y);
       this.updateLoopBanner();
     });
 
-    window.addEventListener('mouseup', () => {
+    const handlePointerEnd = (e: PointerEvent) => {
       if (!this.isInteracting) return;
+      try {
+        this.canvas.releasePointerCapture(e.pointerId);
+      } catch {}
       this.isInteracting = false;
       this.finishMove();
-    });
+    };
 
-    // Touch Events (for mobile/tablet)
-    this.canvas.addEventListener('touchstart', (e) => {
-      if (this.isGameOver || this.board.isAnimating) return;
-      e.preventDefault();
-      if (e.touches.length > 0) {
-        const pos = getPos(e.touches[0]);
-        this.isInteracting = this.connectionManager.handlePointerDown(pos.x, pos.y);
-      }
-    }, { passive: false });
-
-    this.canvas.addEventListener('touchmove', (e) => {
-      if (!this.isInteracting || this.isGameOver || this.board.isAnimating) return;
-      e.preventDefault();
-      if (e.touches.length > 0) {
-        const pos = getPos(e.touches[0]);
-        this.connectionManager.handlePointerMove(pos.x, pos.y);
-        this.updateLoopBanner();
-      }
-    }, { passive: false });
-
-    window.addEventListener('touchend', () => {
-      if (!this.isInteracting) return;
-      this.isInteracting = false;
-      this.finishMove();
-    });
-
-    window.addEventListener('touchcancel', () => {
-      if (!this.isInteracting) return;
+    this.canvas.addEventListener('pointerup', handlePointerEnd);
+    this.canvas.addEventListener('pointercancel', (e: PointerEvent) => {
+      try {
+        this.canvas.releasePointerCapture(e.pointerId);
+      } catch {}
       this.isInteracting = false;
       this.connectionManager.reset();
       this.loopBannerEl.classList.remove('show');
