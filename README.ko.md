@@ -1,8 +1,6 @@
-# Dots - A Game About Connecting
+[English](README.md) | **[한국어](README.ko.md)**
 
-<p align="center">
-  <b><a href="README.md#-english">English</a></b> | <b><a href="README.md#-한국어">한국어 (Overview)</a></b>
-</p>
+# Dots - A Game About Connecting
 
 > 미니멀리즘 퍼즐 게임 **"Dots: A Game About Connecting"**의 웹 기반 클론 프로젝트입니다.  
 > HTML5 Canvas, TypeScript, Vite, Web Audio API를 기반으로 순수 웹 표준 기술로 제작되었으며, 모바일 사파리 및 PWA(Progressive Web App) 환경을 완벽하게 지원합니다.
@@ -39,6 +37,7 @@
 - **고해상도 600x600 가상 해상도 렌더링**: 기기 픽셀 비율(DPR) 왜곡이나 비율 깨짐 없는 선명한 캔버스 그래픽 및 정확한 터치 좌표 보정.
 - **Pointer Events 통일**: 터치, 마우스, 펜 입력을 단일 파이프라인으로 통합하고 `setPointerCapture`로 끊김 없는 드래그 보장.
 - **iOS PWA Standalone 지원**: 홈 화면에 추가 시 주소창 없는 전체 화면 실행, 노치/다이내믹 아일랜드 대응 Safe-Area 패딩, 전용 앱 아이콘 탑재.
+- **낙하 바운스 토글**: 통통 튀는 바운스 애니메이션 On/Off 가능 (`Board.ts`의 `enableBounce`), 기본값 Off로 부드러운 착지.
 
 ---
 
