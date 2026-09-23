@@ -1,6 +1,8 @@
-[English](README.md) | **[한국어](README.ko.md)**
-
 # Dots - A Game About Connecting
+
+<p align="center">
+  <b><a href="README.md#-english">English</a></b> | <b><a href="README.md#-한국어">한국어 (Overview)</a></b>
+</p>
 
 > 미니멀리즘 퍼즐 게임 **"Dots: A Game About Connecting"**의 웹 기반 클론 프로젝트입니다.  
 > HTML5 Canvas, TypeScript, Vite, Web Audio API를 기반으로 순수 웹 표준 기술로 제작되었으며, 모바일 사파리 및 PWA(Progressive Web App) 환경을 완벽하게 지원합니다.
