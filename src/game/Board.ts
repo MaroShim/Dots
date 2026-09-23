@@ -13,8 +13,20 @@ export class Board {
   public canvasHeight: number = CANVAS_SIZE;
 
   constructor() {
-    this.resize(CANVAS_SIZE, CANVAS_SIZE);
+    this.setupMetrics(CANVAS_SIZE, CANVAS_SIZE);
     this.initGrid();
+  }
+
+  public setupMetrics(canvasWidth: number = CANVAS_SIZE, canvasHeight: number = CANVAS_SIZE) {
+    this.canvasWidth = canvasWidth;
+    this.canvasHeight = canvasHeight;
+
+    const padding = Math.min(canvasWidth, canvasHeight) * 0.08;
+    const boardArea = Math.min(canvasWidth, canvasHeight) - padding * 2;
+    this.cellSize = boardArea / GRID_SIZE;
+    this.dotRadius = this.cellSize * 0.28;
+    this.startX = (canvasWidth - boardArea) / 2 + this.cellSize / 2;
+    this.startY = (canvasHeight - boardArea) / 2 + this.cellSize / 2;
   }
 
   public initGrid() {
@@ -42,26 +54,19 @@ export class Board {
   }
 
   public resize(canvasWidth: number = CANVAS_SIZE, canvasHeight: number = CANVAS_SIZE) {
-    this.canvasWidth = canvasWidth;
-    this.canvasHeight = canvasHeight;
+    this.setupMetrics(canvasWidth, canvasHeight);
 
-    // Leave safe margins
-    const padding = Math.min(canvasWidth, canvasHeight) * 0.08;
-    const boardArea = Math.min(canvasWidth, canvasHeight) - padding * 2;
-    this.cellSize = boardArea / GRID_SIZE;
-    this.dotRadius = this.cellSize * 0.28;
-    this.startX = (canvasWidth - boardArea) / 2 + this.cellSize / 2;
-    this.startY = (canvasHeight - boardArea) / 2 + this.cellSize / 2;
+    // Safe guard: only reposition dots if grid has been initialized
+    if (!this.grid || this.grid.length !== GRID_SIZE) return;
 
-    // Reposition all existing dots
     for (let r = 0; r < GRID_SIZE; r++) {
+      if (!this.grid[r]) continue;
       for (let c = 0; c < GRID_SIZE; c++) {
         const dot = this.grid[r][c];
         if (dot) {
           const target = this.getCellCenter(r, c);
           dot.targetX = target.x;
           dot.targetY = target.y;
-          // If dots are at origin or not currently animating, snap to real target
           if ((dot.x === 0 && dot.y === 0) || !this.isAnimating) {
             dot.x = target.x;
             dot.y = target.y;
