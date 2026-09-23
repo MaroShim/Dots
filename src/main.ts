@@ -24,6 +24,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // Sound Toggle Button
   const soundBtn = document.getElementById('sound-btn') as HTMLButtonElement;
   const soundIcon = soundBtn.querySelector('.icon')!;
+  soundIcon.textContent = game.soundManager.getMuted() ? '🔇' : '🔊';
   soundBtn.addEventListener('click', () => {
     const isMuted = game.soundManager.toggleMute();
     soundIcon.textContent = isMuted ? '🔇' : '🔊';
