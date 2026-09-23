@@ -116,5 +116,5 @@ npm run preview
 
 ## 📜 라이선스
 
-이 프로젝트는 학습 및 포트폴리오 목적으로 제작된 오픈소스 프로젝트입니다.
+이 프로젝트는 [MIT License](LICENSE.md)에 따라 자유롭게 사용 및 수정이 가능합니다.
 원본 "Dots: A Game About Connecting"의 게임 콘셉트 및 디자인 권리는 원작자(Playdots, Inc.)에 있습니다.
