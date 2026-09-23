@@ -146,25 +146,25 @@ export class SoundManager {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
 
-        osc.type = 'triangle';
-        const startTime = now + idx * 0.06;
+        osc.type = 'sine';
+        const startTime = now + idx * 0.055;
         osc.frequency.setValueAtTime(freq, startTime);
 
         gain.gain.setValueAtTime(0.001, startTime);
-        gain.gain.linearRampToValueAtTime(0.4, startTime + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.25);
+        gain.gain.linearRampToValueAtTime(0.2, startTime + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.22);
 
         osc.connect(gain);
         gain.connect(ctx.destination);
 
         osc.start(startTime);
-        osc.stop(startTime + 0.26);
+        osc.stop(startTime + 0.23);
       });
     });
   }
 
   /**
-   * Plays a warm, rich wooden marimba tone for connection step
+   * Plays a warm, soft, elegant tone for connection step (original Dots feel)
    */
   public playConnectTone(stepIndex: number) {
     this.runWithAudio((ctx) => {
@@ -172,39 +172,21 @@ export class SoundManager {
       const freq = PENTATONIC_SCALE[freqIndex];
       const now = ctx.currentTime;
 
-      // 1. Primary Marimba Body (Triangle wave for rich odd harmonics)
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      osc.type = 'triangle';
+      osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, now);
 
       gain.gain.setValueAtTime(0.001, now);
-      gain.gain.linearRampToValueAtTime(0.45, now + 0.008);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+      gain.gain.linearRampToValueAtTime(0.2, now + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
       osc.start(now);
-      osc.stop(now + 0.31);
-
-      // 2. Chime Overtone (Sine at 2x frequency for bell-like sparkle)
-      const overtone = ctx.createOscillator();
-      const overGain = ctx.createGain();
-
-      overtone.type = 'sine';
-      overtone.frequency.setValueAtTime(freq * 2, now);
-
-      overGain.gain.setValueAtTime(0.001, now);
-      overGain.gain.linearRampToValueAtTime(0.12, now + 0.005);
-      overGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
-
-      overtone.connect(overGain);
-      overGain.connect(ctx.destination);
-
-      overtone.start(now);
-      overtone.stop(now + 0.17);
+      osc.stop(now + 0.23);
     });
   }
 
@@ -217,18 +199,17 @@ export class SoundManager {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      osc.type = 'triangle';
+      osc.type = 'sine';
       osc.frequency.setValueAtTime(220, now);
-      osc.frequency.exponentialRampToValueAtTime(160, now + 0.1);
 
-      gain.gain.setValueAtTime(0.25, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
       osc.start(now);
-      osc.stop(now + 0.12);
+      osc.stop(now + 0.11);
     });
   }
 
@@ -244,19 +225,19 @@ export class SoundManager {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
 
-        osc.type = 'triangle';
-        const startTime = now + idx * 0.035;
+        osc.type = 'sine';
+        const startTime = now + idx * 0.04;
         osc.frequency.setValueAtTime(freq, startTime);
 
         gain.gain.setValueAtTime(0.001, startTime);
-        gain.gain.linearRampToValueAtTime(0.3, startTime + 0.015);
-        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.5);
+        gain.gain.linearRampToValueAtTime(0.16, startTime + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.35);
 
         osc.connect(gain);
         gain.connect(ctx.destination);
 
         osc.start(startTime);
-        osc.stop(startTime + 0.52);
+        osc.stop(startTime + 0.36);
       });
     });
   }
@@ -270,18 +251,18 @@ export class SoundManager {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      osc.type = 'triangle';
+      osc.type = 'sine';
       osc.frequency.setValueAtTime(520, now);
-      osc.frequency.exponentialRampToValueAtTime(110, now + 0.38);
+      osc.frequency.exponentialRampToValueAtTime(110, now + 0.32);
 
-      gain.gain.setValueAtTime(0.28, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+      gain.gain.setValueAtTime(0.16, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
       osc.start(now);
-      osc.stop(now + 0.39);
+      osc.stop(now + 0.33);
     });
   }
 
@@ -297,19 +278,19 @@ export class SoundManager {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
 
-        osc.type = 'triangle';
+        osc.type = 'sine';
         const startTime = now + idx * 0.045;
         osc.frequency.setValueAtTime(freq, startTime);
 
         gain.gain.setValueAtTime(0.001, startTime);
-        gain.gain.linearRampToValueAtTime(0.22, startTime + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.22);
+        gain.gain.linearRampToValueAtTime(0.14, startTime + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.18);
 
         osc.connect(gain);
         gain.connect(ctx.destination);
 
         osc.start(startTime);
-        osc.stop(startTime + 0.23);
+        osc.stop(startTime + 0.19);
       });
     });
   }
@@ -326,12 +307,12 @@ export class SoundManager {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
 
-        osc.type = 'triangle';
+        osc.type = 'sine';
         const startTime = now + idx * 0.045;
         osc.frequency.setValueAtTime(freq, startTime);
 
         gain.gain.setValueAtTime(0.001, startTime);
-        gain.gain.linearRampToValueAtTime(0.22, startTime + 0.01);
+        gain.gain.linearRampToValueAtTime(0.14, startTime + 0.01);
         gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.16);
 
         osc.connect(gain);
@@ -353,17 +334,17 @@ export class SoundManager {
       const gain = ctx.createGain();
 
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(isSquare ? 600 : 420, now);
-      osc.frequency.exponentialRampToValueAtTime(isSquare ? 1300 : 920, now + 0.12);
+      osc.frequency.setValueAtTime(isSquare ? 650 : 440, now);
+      osc.frequency.exponentialRampToValueAtTime(isSquare ? 1200 : 880, now + 0.1);
 
-      gain.gain.setValueAtTime(0.35, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
       osc.start(now);
-      osc.stop(now + 0.15);
+      osc.stop(now + 0.13);
     });
   }
 }
