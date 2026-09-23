@@ -1,6 +1,6 @@
 import { Dot, DotColor, GridPos } from './types';
 import { GRID_SIZE, CANVAS_SIZE, DOT_COLORS } from '../constants';
-import { easeOutBounce } from './easing';
+import { easeOutBounce, easeOutCubic } from './easing';
 
 export class Board {
   public grid: (Dot | null)[][] = [];
@@ -180,6 +180,15 @@ export class Board {
   private activeFallDots: { dot: Dot; startY: number; destY: number; delay: number }[] = [];
   private onAnimComplete?: () => void;
 
+  /**
+   * Toggle bounce physics on fall-in (true = bounce, false = smooth deceleration)
+   */
+  public enableBounce: boolean = false;
+
+  public setBounceEnabled(enabled: boolean) {
+    this.enableBounce = enabled;
+  }
+
   public get isAnimating(): boolean {
     return this.isFallingOut || this.isFallingIn;
   }
@@ -235,6 +244,7 @@ export class Board {
   public startFallIn(onComplete?: () => void) {
     this.isFallingIn = true;
     this.isFallingOut = false;
+    this.fallInDuration = this.enableBounce ? 650 : 450;
     this.animStartTime = performance.now();
     this.onAnimComplete = onComplete;
     this.activeFallDots = [];
@@ -329,8 +339,9 @@ export class Board {
         const effectiveDuration = Math.max(100, this.fallInDuration - item.delay);
         const p = Math.min(1, (elapsed - item.delay) / effectiveDuration);
 
-        // Ease-out bounce
-        item.dot.y = item.startY + (item.destY - item.startY) * easeOutBounce(p);
+        // Easing: bounce when enabled, otherwise smooth cubic deceleration
+        const eased = this.enableBounce ? easeOutBounce(p) : easeOutCubic(p);
+        item.dot.y = item.startY + (item.destY - item.startY) * eased;
         if (p < 1) allDone = false;
       }
 
