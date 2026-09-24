@@ -5,7 +5,7 @@ export const CANVAS_SIZE = 600;
 
 export const DOT_COLORS: DotColor[] = [
   '#EA4335', // Red
-  '#0091EA', // Sky Blue
+  '#00A0FF', // Vibrant Sky Blue
   '#2E7D32', // Forest Green
   '#FBBC05', // Yellow
   '#9C27B0'  // Purple
