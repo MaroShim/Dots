@@ -82,9 +82,9 @@ function drawDotsIcon(x, y, w, h) {
 
   const dots = [
     { cx: w * 0.35, cy: h * 0.35, color: hexToRgb('#EA4335') }, // Red
-    { cx: w * 0.65, cy: h * 0.35, color: hexToRgb('#4285F4') }, // Blue
+    { cx: w * 0.65, cy: h * 0.35, color: hexToRgb('#0091EA') }, // Sky Blue
     { cx: w * 0.35, cy: h * 0.65, color: hexToRgb('#FBBC05') }, // Yellow
-    { cx: w * 0.65, cy: h * 0.65, color: hexToRgb('#34A853') }  // Green
+    { cx: w * 0.65, cy: h * 0.65, color: hexToRgb('#2E7D32') }  // Forest Green
   ];
 
   const dotRadius = w * 0.12;

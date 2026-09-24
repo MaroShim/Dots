@@ -1,6 +1,6 @@
 export type GameMode = 'timed' | 'moves' | 'endless';
 
-export type DotColor = '#EA4335' | '#4285F4' | '#34A853' | '#FBBC05' | '#9C27B0';
+export type DotColor = '#EA4335' | '#0091EA' | '#2E7D32' | '#FBBC05' | '#9C27B0';
 
 export interface Dot {
   id: number;
